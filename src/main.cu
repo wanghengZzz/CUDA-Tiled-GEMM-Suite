@@ -71,6 +71,7 @@ int main()
     if (WIDTH > B_n) return std::cerr << "Tile width > B_n.\n", 0;
     if (HEIGHT > A_m) return std::cerr << "Tile height > A_m.\n", 0;
     if (offset > A_n) return std::cerr << "Tile offset > A_n (k-dim).\n", 0;
+    if (WIDTH * HEIGHT & (32 - 1)) return std::cerr << "Please make sure the number of threads in one block is a mutiplier of 32 (warpSize).\n", 0;
 
     // --- Host memory ---
     int C[m * n] = {};

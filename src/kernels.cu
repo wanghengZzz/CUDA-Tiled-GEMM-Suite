@@ -84,6 +84,7 @@ void Call_Matrix_Mul_Tile_Cross_SMs(const int *A, const int *B, int *C)
 {
     int sharedMemSize;
     int k_offset_local;
+    int k_offset_pad;
     int round_up_h   = DIV_ROUND_UP(m, HEIGHT);
     int round_up_w   = DIV_ROUND_UP(n, WIDTH);
     int round_up_B_n = round_up_w * WIDTH;
