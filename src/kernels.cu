@@ -7,7 +7,7 @@ extern __shared__ int S[];
 /* -------------------------------------------------
  * 1. Basic tiled matrix multiplication kernel
  * ------------------------------------------------- */
-__global__ void Matrix_Mul_Tile(const int *A, const int *B, int *C, int w, int h, int base_i, int base_j, int base_k, int k_offset)
+__global__ void Matrix_Mul_Tile(const int *A, const int *B, int * __restrict__ C, int w, int h, int base_i, int base_j, int base_k, int k_offset)
 {
     int i = threadIdx.x;
     int j = threadIdx.y;
@@ -39,7 +39,7 @@ __global__ void Matrix_Mul_Tile(const int *A, const int *B, int *C, int w, int h
  *   memory addresses and maintain coalesced memory access patterns.
  */
 
-__global__ void Matrix_Mul_Tile_Cross_SMs_K(const int *A, const int *B, int *C, int w, int h, int Pad_B_n, int base_k, int k_offset)
+__global__ void Matrix_Mul_Tile_Cross_SMs_K(const int *A, const int *B, int * __restrict__ C, int w, int h, int Pad_B_n, int base_k, int k_offset)
 {
     int bi = blockIdx.x;
     int bj = blockIdx.y;
@@ -65,7 +65,7 @@ __global__ void Matrix_Mul_Tile_Cross_SMs_K(const int *A, const int *B, int *C, 
 /* -------------------------------------------------
  * 3. General GEMM (non-tiled reference implementation)
  * ------------------------------------------------- */
-__global__ void Matrix_Mul_General_K(const int *A, const int *B, int *C)
+__global__ void Matrix_Mul_General_K(const int *A, const int *B, int * __restrict__ C)
 {
     int i = threadIdx.x;
     int j = threadIdx.y;
@@ -93,10 +93,10 @@ void Call_Matrix_Mul_Tile_Cross_SMs(const int *A, const int *B, int *C)
     for (int k = 0; k < A_n; k += offset) {
         k_offset_local = min(A_n - k, offset);
         dim3 ThreadsPerBlock(HEIGHT, WIDTH);
-        sharedMemSize = ((HEIGHT + WIDTH) * k_offset_local) * sizeof(int);
-
+        k_offset_pad = k_offset_local + (k_offset_local & (32 - 1) ? 0 : 1);
+        sharedMemSize = ((HEIGHT + WIDTH) * k_offset_pad) * sizeof(int);
         Matrix_Mul_Tile_Cross_SMs_K<<<BlocksPerGrid, ThreadsPerBlock, sharedMemSize>>>(
-            A, B, C, WIDTH, HEIGHT, round_up_B_n, k, k_offset_local
+            A, B, C, WIDTH, HEIGHT, round_up_B_n, k, k_offset_pad
         );
     }
 }
@@ -106,6 +106,7 @@ void Call_Matrix_Mul_Tile(const int *A, const int *B, int *C)
     int sharedMemSize;
     int w, h;
     int k_offset_local;
+    int k_offset_pad;
 
     for (int k = 0; k < A_n; k += offset) {
         for (int bi = 0; bi < m; bi += HEIGHT) {
@@ -113,12 +114,12 @@ void Call_Matrix_Mul_Tile(const int *A, const int *B, int *C)
                 w = min(WIDTH,  n - bj);
                 h = min(HEIGHT, m - bi);
                 k_offset_local = min(A_n - k, offset);
-
+                k_offset_pad = k_offset_local + (k_offset_local & (32 - 1) ? 0 : 1);
                 dim3 ThreadsPerBlock(h, w, k_offset_local);
-                sharedMemSize = ((h + w) * k_offset_local) * sizeof(int);
+                sharedMemSize = ((h + w) * k_offset_pad) * sizeof(int);
 
                 Matrix_Mul_Tile<<<1, ThreadsPerBlock, sharedMemSize>>>(
-                    A, B, C, w, h, bi, bj, k, k_offset_local
+                    A, B, C, w, h, bi, bj, k, k_offset_pad
                 );
             }
         }
