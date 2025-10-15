@@ -18,7 +18,8 @@ A high-performance CUDA implementation of **General Matrix Multiplication (GEMM)
 - **No atomic operations** in the optimized version — each thread computes a unique `C` element  
 - **No branch divergence** — the optimized tiled kernel avoids all `if / else` conditions for full warp efficiency  
 - **Supports non-divisible matrix sizes** (handles remainder tiles gracefully)  
-- Optional **matrix padding** improves coalescing and simplifies edge-case handling  
+- **Matrix padding** improves coalescing and simplifies edge-case handling  
+- **Shared-memory stride padding (+1)** to eliminate 32-bank conflicts in tiled GEMM kernels.
 
 ---
 
